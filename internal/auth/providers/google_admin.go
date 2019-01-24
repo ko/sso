@@ -19,8 +19,8 @@ import (
 
 // AdminService wraps calls to provider admin APIs
 type AdminService interface {
-	GetMembers(string) ([]string, error)
-	GetGroups(string) ([]string, error)
+	GetMembers(string, int, int) ([]string, error)
+	HasMember([]string, string) ([]string, error)
 }
 
 // GoogleAdminService is an AdminService for the google provider
@@ -52,7 +52,7 @@ func getAdminService(adminEmail string, credentialsReader io.Reader) *admin.Serv
 }
 
 // GetMembers returns the members of a google group
-func (gs *GoogleAdminService) GetMembers(groupName string) ([]string, error) {
+func (gs *GoogleAdminService) GetMembers(groupName string, currentDepth, maxDepth int) ([]string, error) {
 	var members []string
 	tags := []string{
 		"provider:google",
@@ -109,6 +109,17 @@ func (gs *GoogleAdminService) GetMembers(groupName string) ([]string, error) {
 
 		for _, member := range r.Members {
 			members = append(members, member.Email)
+			if member.Type == "GROUP" {
+				// this is a nested group, recursively walk down the nested group, up to maxDepth
+				if currentDepth >= maxDepth {
+					continue
+				}
+				groupMembers, err := gs.GetMembers(member.Email, currentDepth+1, maxDepth)
+				if err != nil {
+					return nil, err
+				}
+				members = append(members, groupMembers...)
+			}
 		}
 		if r.NextPageToken == "" {
 			break
@@ -118,22 +129,19 @@ func (gs *GoogleAdminService) GetMembers(groupName string) ([]string, error) {
 	return members, nil
 }
 
-// GetGroups gets the groups that a user with a given email address belongs to.
-func (gs *GoogleAdminService) GetGroups(email string) ([]string, error) {
-	var groups []string
+// HasMember checks if the user has membership in the given groups
+func (gs *GoogleAdminService) HasMember(groups []string, email string) ([]string, error) {
 	tags := []string{
 		"provider:google",
-		"action:groups_resource",
+		"action:has_member_resource",
 	}
-	pageToken := ""
-	for {
+	inGroups := []string{}
+
+	for _, group := range groups {
 		startTS := time.Now()
 
-		// get pages of 200 groups for an email
-		req := gs.adminService.Groups.List().MaxResults(200).UserKey(email)
-		if pageToken != "" {
-			req.PageToken(pageToken)
-		}
+		// This call includes nested groups so no recursive resolving is required
+		req := gs.adminService.Members.HasMember(group, email)
 		gs.StatsdClient.Incr("provider.request", tags, 1.0)
 
 		resp, err := gs.cb.Call(func() (interface{}, error) {
@@ -166,19 +174,16 @@ func (gs *GoogleAdminService) GetGroups(email string) ([]string, error) {
 			return nil, err
 		}
 
-		r := resp.(*admin.Groups)
+		r := resp.(*admin.MembersHasMember)
 
 		tags = append(tags, fmt.Sprintf("status_code:%d", r.HTTPStatusCode))
 		gs.StatsdClient.Timing("provider.latency", time.Now().Sub(startTS), tags, 1.0)
 		gs.StatsdClient.Incr("provider.response", tags, 1.0)
 
-		for _, group := range r.Groups {
-			groups = append(groups, group.Email)
+		if r.IsMember {
+			inGroups = append(inGroups, group)
 		}
-		if r.NextPageToken == "" {
-			break
-		}
-		pageToken = r.NextPageToken
 	}
-	return groups, nil
+
+	return inGroups, nil
 }

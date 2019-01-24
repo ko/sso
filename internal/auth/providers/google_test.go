@@ -314,8 +314,8 @@ func TestValidateGroupMembers(t *testing.T) {
 	testCases := []struct {
 		name                string
 		inputAllowedGroups  []string
-		groups              []string
 		groupsError         error
+		hasMemberGroups     []string
 		getMembersFunc      func(string) (groups.MemberSet, bool)
 		expectedGroups      []string
 		expectedErrorString string
@@ -323,36 +323,28 @@ func TestValidateGroupMembers(t *testing.T) {
 		{
 			name:               "empty input groups should return an empty string",
 			inputAllowedGroups: []string{},
-			groups:             []string{"group1"},
-			expectedGroups:     []string{"group1"},
+			expectedGroups:     []string{},
 			getMembersFunc:     func(string) (groups.MemberSet, bool) { return nil, false },
 		},
 		{
-			name:                "empty inputs and error on groups resource should return error",
-			inputAllowedGroups:  []string{},
-			getMembersFunc:      func(string) (groups.MemberSet, bool) { return nil, false },
-			groupsError:         fmt.Errorf("error"),
-			expectedErrorString: "error",
-		},
-		{
-			name:               "member exists in cache, should not call groups resource",
+			name:               "member exists in cache, should not call has member resource",
 			inputAllowedGroups: []string{"group1"},
 			groupsError:        fmt.Errorf("should not get here"),
 			getMembersFunc:     func(string) (groups.MemberSet, bool) { return groups.MemberSet{"email": {}}, true },
 			expectedGroups:     []string{"group1"},
 		},
 		{
-			name:               "member does not exist in cache, should still not call groups resource",
+			name:               "member does not exist in cache, should still not call has member resource",
 			inputAllowedGroups: []string{"group1"},
 			groupsError:        fmt.Errorf("should not get here"),
 			getMembersFunc:     func(string) (groups.MemberSet, bool) { return groups.MemberSet{}, true },
 			expectedGroups:     []string{},
 		},
 		{
-			name:               "subset of groups are not cached, calls groups resource",
+			name:               "subset of groups are not cached, calls has member resource",
 			inputAllowedGroups: []string{"group1", "group2"},
-			groups:             []string{"group1", "group2", "group3"},
 			groupsError:        nil,
+			hasMemberGroups:    []string{"group1"},
 			getMembersFunc: func(group string) (groups.MemberSet, bool) {
 				switch group {
 				case "group1":
@@ -361,10 +353,10 @@ func TestValidateGroupMembers(t *testing.T) {
 					return groups.MemberSet{}, false
 				}
 			},
-			expectedGroups: []string{"group1", "group2"},
+			expectedGroups: []string{"group1"},
 		},
 		{
-			name:               "subset of groups are not cached, calls groups resource with error",
+			name:               "subset of groups are not cached, calls has member resource with error",
 			inputAllowedGroups: []string{"group1", "group2"},
 			groupsError:        fmt.Errorf("error"),
 			getMembersFunc: func(group string) (groups.MemberSet, bool) {
@@ -378,9 +370,8 @@ func TestValidateGroupMembers(t *testing.T) {
 			expectedErrorString: "error",
 		},
 		{
-			name:               "subset of groups not there, does not call groups resource",
+			name:               "subset of groups not there, does not call has member resource",
 			inputAllowedGroups: []string{"group1", "group2"},
-			groups:             []string{"group1", "group2", "group3"},
 			groupsError:        fmt.Errorf("should not get here"),
 			getMembersFunc: func(group string) (groups.MemberSet, bool) {
 				switch group {
@@ -397,7 +388,7 @@ func TestValidateGroupMembers(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			p := GoogleProvider{
-				AdminService: &MockAdminService{Groups: tc.groups, GroupsError: tc.groupsError},
+				AdminService: &MockAdminService{Groups: tc.hasMemberGroups, GroupsError: tc.groupsError},
 				GroupsCache:  &groups.MockCache{GetMembersFunc: tc.getMembersFunc, Refreshed: true},
 			}
 

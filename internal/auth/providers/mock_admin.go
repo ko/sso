@@ -9,11 +9,11 @@ type MockAdminService struct {
 }
 
 // GetMembers mocks the GetMembers function
-func (ms *MockAdminService) GetMembers(string) ([]string, error) {
+func (ms *MockAdminService) GetMembers(string, int, int) ([]string, error) {
 	return ms.Members, ms.MembersError
 }
 
-// GetGroups mocks the GetGroups function
-func (ms *MockAdminService) GetGroups(string) ([]string, error) {
+// HasMember mocks the HasMembers function
+func (ms *MockAdminService) HasMember([]string, string) ([]string, error) {
 	return ms.Groups, ms.GroupsError
 }
