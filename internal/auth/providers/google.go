@@ -319,7 +319,7 @@ func (p *GoogleProvider) Redeem(redirectURL, code string) (*sessions.SessionStat
 
 // PopulateMembers is the fill function for the groups cache
 func (p *GoogleProvider) PopulateMembers(group string) (groups.MemberSet, error) {
-	members, err := p.AdminService.GetMembers(group, 0, 2)
+	members, err := p.AdminService.GetMembers(group, 0, 4)
 	if err != nil {
 		return nil, err
 	}
