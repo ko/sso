@@ -53,6 +53,8 @@ func getAdminService(adminEmail string, credentialsReader io.Reader) *admin.Serv
 
 // GetMembers returns the members of a google group
 func (gs *GoogleAdminService) GetMembers(groupName string, currentDepth, maxDepth int) ([]string, error) {
+	logger := log.NewLogEntry()
+
 	var members []string
 	tags := []string{
 		"provider:google",
@@ -108,9 +110,11 @@ func (gs *GoogleAdminService) GetMembers(groupName string, currentDepth, maxDept
 		gs.StatsdClient.Incr("provider.response", tags, 1.0)
 
 		for _, member := range r.Members {
-			members = append(members, member.Email)
-			if member.Type == "GROUP" {
-				// this is a nested group, recursively walk down the nested group, up to maxDepth
+			switch member.Type {
+			case "USER":
+				members = append(members, member.Email)
+			case "GROUP":
+				// this is a group, recursively walk down the nested group, up to maxDepth
 				if currentDepth >= maxDepth {
 					continue
 				}
@@ -119,6 +123,10 @@ func (gs *GoogleAdminService) GetMembers(groupName string, currentDepth, maxDept
 					return nil, err
 				}
 				members = append(members, groupMembers...)
+			default:
+				err := fmt.Errorf("unknown member type %s", member.Type)
+				logger.WithError(err).Error("not adding member to group list")
+				continue
 			}
 		}
 		if r.NextPageToken == "" {
