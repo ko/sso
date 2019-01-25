@@ -20,7 +20,7 @@ import (
 // AdminService wraps calls to provider admin APIs
 type AdminService interface {
 	GetMembers(string, int, int) ([]string, error)
-	HasMember([]string, string) ([]string, error)
+	CheckMembership([]string, string) ([]string, error)
 }
 
 // GoogleAdminService is an AdminService for the google provider
@@ -137,11 +137,12 @@ func (gs *GoogleAdminService) GetMembers(groupName string, currentDepth, maxDept
 	return members, nil
 }
 
-// HasMember checks if the user has membership in the given groups
-func (gs *GoogleAdminService) HasMember(groups []string, email string) ([]string, error) {
+// CheckMembership given a list of groups and a user email, returns a string slice of the groups the user is a member of.
+// This func leverages the google HasMember endpoint to verify if a user has membership of the given groups.
+func (gs *GoogleAdminService) CheckMembership(groups []string, email string) ([]string, error) {
 	tags := []string{
 		"provider:google",
-		"action:has_member_resource",
+		"action:check_membership_resource",
 	}
 	inGroups := []string{}
 

@@ -13,7 +13,7 @@ func (ms *MockAdminService) GetMembers(string, int, int) ([]string, error) {
 	return ms.Members, ms.MembersError
 }
 
-// HasMember mocks the HasMembers function
-func (ms *MockAdminService) HasMember([]string, string) ([]string, error) {
+// CheckMembership mocks the CheckMembership function
+func (ms *MockAdminService) CheckMembership([]string, string) ([]string, error) {
 	return ms.Groups, ms.GroupsError
 }

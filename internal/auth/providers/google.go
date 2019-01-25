@@ -331,7 +331,7 @@ func (p *GoogleProvider) PopulateMembers(group string) (groups.MemberSet, error)
 }
 
 // ValidateGroupMembership takes in an email and the allowed groups and returns the groups that the email is part of in that list.
-// If `allGroups` is an empty list it returns all the groups that the user belongs to.
+// If `allGroups` is an empty list, returns an empty list.
 func (p *GoogleProvider) ValidateGroupMembership(email string, allGroups []string) ([]string, error) {
 	logger := log.NewLogEntry()
 
@@ -361,7 +361,7 @@ func (p *GoogleProvider) ValidateGroupMembership(email string, allGroups []strin
 
 	// if a cached member set was not populated, use the groups resource to get all the groups and filter out the ones that are in `allGroups`
 	if useGroupsResource {
-		return p.AdminService.HasMember(allGroups, email)
+		return p.AdminService.CheckMembership(allGroups, email)
 	}
 
 	return groups, nil
